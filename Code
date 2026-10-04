@@ -1,0 +1,97 @@
+// PROJECT  :4-Way Traffic Light
+// PURPOSE  :Operate a 4-Way, 12-LED Traffic Light Using 3 Pins Via Charlieplexing
+// COURSE   :TEJ4M
+// AUTHOR   :Neal Shaw
+// DATE     :2026 10 3
+// MCU      :ATTiny85
+// STATUS   :Working
+// REFERENCE:http://darcy.rsgc.on.ca/ACES/TEI4M/Tasks.html#4WayTrafficLight
+
+#define PINA 2 //Define pins
+#define PINB 1
+#define PINC 0
+
+uint8_t ledPins[] = {PINA, PINB, PINC};  //Put pins into an array
+uint8_t totalPins = sizeof(ledPins);     //Record number of pins
+
+struct LED {uint8_t anode; uint8_t cathode;}; //Structure for flow of current
+
+LED trafficLEDs[] = { //Record pin combinations for all colours
+  {PINA, PINB},       //NS.RED
+  {PINB, PINA},       //NS.GREEN
+  {PINA, PINC},       //EW.RED
+  {PINC, PINA},       //EW.YELLOW
+  {PINB, PINC},       //NS.YELLOW
+  {PINC, PINB}        //EW.GREEN
+};
+
+//Define all colours with pin combination location in trafficLEDs array
+#define NSRED 0
+#define NSGREEN 1
+#define EWRED 2
+#define EWYELLOW 3
+#define NSYELLOW 4
+#define EWGREEN 5
+
+uint8_t trafficStates[][2] = {  //Put all states of cycle in an array
+  {NSRED, EWRED},       //State 0: Both Red
+  {NSRED, EWGREEN},     //State 1: NS Red, EW Green
+  {NSRED, EWYELLOW},    //State 2: NS Red, EW Yellow
+  {NSRED, EWRED},       //State 3: Both Red
+  {NSGREEN, EWRED},     //State 4: NS Green, EW Red
+  {NSYELLOW, EWRED}     //State 5: NS Yellow, EW Red
+};
+
+//Calculate number of traffic light states
+uint8_t totalStates = sizeof(trafficStates)/sizeof(trafficStates[0]);
+
+//Put amounts of time each state remains active for in an array
+uint16_t stateTimes[] = {2000, 2000, 1000, 2000, 2000, 1000};
+
+uint8_t currentState = 0; //Stores current traffic light state
+
+void setup() {
+  //Set every pin to input
+  for (uint8_t i = 0; i < totalPins; i++)
+    pinMode(ledPins[i], INPUT);
+}
+
+void loop() {
+  showTrafficState( //Display LEDs for current state
+    trafficStates[currentState][0],
+    trafficStates[currentState][1],
+    stateTimes[currentState]
+  );
+
+  currentState++; //Advance to next state
+
+  if (currentState == totalStates)  //Restart cycle after final state
+    currentState = 0;
+}
+
+//Multiplex between two LEDs to have both lights on "at once"
+void showTrafficState(uint8_t LED1, uint8_t LED2, uint16_t stateTime) {
+  unsigned long startTime = millis(); //Take start time
+
+  //Display state until time has elapsed
+  while (millis() - startTime < stateTime) {
+    turnOnLED(LED1);  //Turn on first traffic light
+    delay(1);
+
+    turnOnLED(LED2);  //Turn on second traffic light
+    delay(1);
+  }
+}
+
+void turnOnLED(uint8_t whichLED) {
+  for (uint8_t i = 0; i < totalPins; i++) //Set all pins to input
+    pinMode(ledPins[i], INPUT);
+
+  //Set selected LEDs two pins as outputs
+  pinMode(trafficLEDs[whichLED].anode, OUTPUT);
+  pinMode(trafficLEDs[whichLED].cathode, OUTPUT);
+
+  //Set selected LEDs anode/cathode pins as HIGH/LOW
+  digitalWrite(trafficLEDs[whichLED].anode, HIGH);
+  digitalWrite(trafficLEDs[whichLED].cathode, LOW);
+}
